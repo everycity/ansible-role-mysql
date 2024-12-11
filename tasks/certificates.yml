@@ -34,7 +34,7 @@
     creates: "{{ mysql_certificates_dir }}/client-cert.pem"
   when: mysql_replication_role == 'master'
 
-  - name: Copy CA certificate to slave
+- name: Copy CA certificate to slave
   synchronize:
     src: "{{ mysql_certificates_dir }}/ca-cert.pem"
     dest: "{{ mysql_certificates_dir }}/ca-cert.pem"
