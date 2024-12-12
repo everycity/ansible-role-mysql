@@ -13,6 +13,51 @@
     - (mysql_replication_master | length) > 0
   tags: ['skip_ansible_galaxy']
 
+- name: Create temporary backup directory on master
+  tempfile:
+    state: directory
+    prefix: ansible-
+    suffix: .mysqlslave
+  register: backupdir
+  when: mysql_replication_role == 'master'
+
+- name: Dump database from master
+  command: >-
+    mysqldump --master-data=2 --single-transaction --all-databases {{ backupdir.path }}/dump.sql
+  register: mysqldump
+  when: mysql_replication_role == 'master'
+  failed_when: '"Dump completed on" not in mysqldump'
+
+- name: Compress database dump
+  archive:
+    path: "{{ backupdir.path }}/dump.sql"
+    dest: "{{ backupdir.path }}/dump.gz"
+    format: gz
+    owner: root
+    group: root
+    mode: 0600
+    remove: true
+
+- name: Transfer dump file to slave
+  synchronize:
+    src: "{{ hostvars[master].backupdir.path }}/dump.gz"
+    dest: /var/lib/mysql
+  delegate_to: "{{ master }}"
+  when: mysql_replication_role == 'slave'
+
+- name: Uncompress database dump
+  unarchive:
+    src: /var/lib/mysql/dump.gz
+    dest: /var/lib/mysql
+    owner: mysql
+    group: mysql
+  when: mysql_replication_role == 'slave'
+
+- name: Import dump on slave
+  command: >-
+    mysql < /var/lib/mysql/dump.sql
+  when: mysql_replication_role == 'slave'
+
 - name: Check slave replication status.
   mysql_replication:
     mode: getreplica
