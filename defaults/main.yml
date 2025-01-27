@@ -1,4 +1,8 @@
 ---
+master_dump_file: /path/of/file
+mysql_binlog_file: "binlog file"
+mysql_binlog_pos: "binlog position"
+
 # Set this to the user ansible is logging in as - should have root
 # or sudo access
 mysql_user_home: /root
