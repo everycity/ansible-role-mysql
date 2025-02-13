@@ -5,16 +5,6 @@
   changed_when: false
   check_mode: false
 
-- name: Copy my.cnf global MySQL configuration.
-  ansible.builtin.template:
-    src: my.cnf.j2
-    dest: "{{ mysql_config_file }}"
-    owner: root
-    group: root
-    mode: 0644
-    force: "{{ overwrite_global_mycnf }}"
-  notify: restart mysql
-
 - name: Verify mysql include directory exists.
   ansible.builtin.file:
     path: "{{ mysql_config_include_dir }}"
@@ -24,15 +14,14 @@
     mode: 0755
   when: mysql_config_include_files | length
 
-- name: Copy my.cnf override files into include directory.
+- name: Copy .my.cnf file into home directory
   ansible.builtin.template:
-    src: "{{ item.src }}"
-    dest: "{{ mysql_config_include_dir }}/{{ item.src | basename }}"
-    owner: root
-    group: root
+    src: ../templates/my.cnf.j2
+    dest: "{{ mysql_root_home }}/.my.cnf"
+    owner: "{{ mysql_root_username }}"
+    group: "{{ mysql_root_username }}"
     mode: 0644
-    force: "{{ item.force | default(False) }}"
-  with_items: "{{ mysql_config_include_files }}"
+    force: false
   notify: restart mysql
 
 - name: Create slow query log file (if configured).

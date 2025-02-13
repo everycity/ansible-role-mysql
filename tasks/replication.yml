@@ -1,9 +1,24 @@
 ---
+- name: Ensure dump file destination directory exists
+  file:
+    path: "{{ remote_master_dump_file | dirname }}"
+    state: directory
+  when: "{{ copy_dump_file | bool }}"
+
+- name: Copy dump file to slave
+  copy:
+    src: "{{ local_master_dump_file }}"
+    dest: "{{ remote_master_dump_file }}"
+    remote_src: no
+    force: no
+  when: "{{ copy_dump_file | bool }}"
+
 - name: Restore the dump to the slave
-    shell: |
-      mysql --user=root --password={{ mysql_root_password }} < {{ master_dump_file }}
-    args:
-      executable: /bin/bash
+  shell: |
+    mysql --user=root --password={{ mysql_root_password }} < {{ remote_master_dump_file }}
+  args:
+    executable: /bin/bash
+  when: not skip_import|bool
 
 - name: Check slave replication status.
   mysql_replication:
@@ -25,7 +40,11 @@
     master_user: "{{ mysql_replication_user.name }}"
     master_password: "{{ mysql_replication_user.password }}"
     master_log_file: "{{ mysql_binlog_file }}"
-    master_log_pos: "{{ mysql_binlog_position }}"
+    master_log_pos: "{{ mysql_binlog_pos }}"
+    master_ssl: 1
+    master_ssl_ca: "{{ mysql_cert_dir }}/ca-cert.pem"
+    master_ssl_cert: "{{ mysql_cert_dir }}/client-cert.pem"
+    master_ssl_key: "{{ mysql_cert_dir }}/client-key.pem"
   no_log: "{{ mysql_hide_passwords }}"
   ignore_errors: true
   when:
@@ -38,7 +57,6 @@
   mysql_replication:
     mode: startreplica
   when:
-    - (slave.Is_Slave is defined and slave.Is_Slave) or (slave.Is_Replica is defined and slave.Is_Replica) or (slave.Is_Slave is not defined and slave.Is_Replica is not defined and slave is failed)
     - mysql_replication_role == 'slave'
     - (mysql_replication_master | length) > 0
   tags: ['skip_ansible_galaxy']

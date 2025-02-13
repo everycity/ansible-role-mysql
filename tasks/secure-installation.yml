@@ -26,6 +26,16 @@
   check_mode: false
   when: mysql_install_packages | bool or mysql_root_password_update
 
+- name: Update MySQL root password for localhost root account (5.7.x).
+  ansible.builtin.shell: >
+    mysql -u root -NBe
+    "ALTER USER '{{ mysql_root_username }}'@'{{ item }}'
+     IDENTIFIED WITH mysql_native_password BY '{{ mysql_root_password }}'; FLUSH PRIVILEGES;"
+  no_log: "{{ mysql_hide_passwords }}"
+  with_items: "{{ mysql_root_hosts.stdout_lines|default([]) }}"
+  when: >
+    ((mysql_install_packages | bool) or mysql_root_password_update)
+
 - name: Get list of hosts for the anonymous user.
   ansible.builtin.command: mysql -NBe "SELECT Host FROM mysql.user WHERE User = ''"
   register: mysql_anonymous_hosts
